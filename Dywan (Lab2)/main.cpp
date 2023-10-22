@@ -1,41 +1,33 @@
-/*************************************************************************************/
-
-// Trochê bardziej skomplikowany program wykorzystuj¹cy funkcje biblioteki OpenGL
-
-/*************************************************************************************/
-
 #include <windows.h>
-
 #include <gl/gl.h>
-
 #include <gl/glut.h>
-
 #include <iostream>
 
 using namespace std;
 
-/*************************************************************************************/
-
+int recursion = 0;
+int blur_level = 0;
+bool drawn = false; // Flaga œledz¹ca, czy dywan zosta³ ju¿ narysowany
 
 // Funkcja do generowania liczb pseudolosowych
-/*************************************************************************************/
 int random(int blur_level) {
-    if (blur_level == 0) return 0;
+    if (blur_level == 0 || blur_level == 1) return 1;
     return rand() % blur_level;
 }
-
-/*************************************************************************************/
 
 // Funkcja do rysowania dywanu Sierpiñskiego
 void drawCarpet(int x, int y, int size, int depth, int blur_level) {
     if (depth == 0) {
+
         glColor3f(random(blur_level), random(blur_level), random(blur_level));
-        // Ustawienie aktualnego koloru rysowania na zielony
+        // Ustawienie aktualnego koloru rysowania na losowy
 
-        int blur = random(blur_level);
         // Losowanie poziomu rozmycia
+        int blur = 0;
+        if (blur_level != 0) blur = random(blur_level);
 
-        // Narysuj czworokat
+
+        // Narysuj czworok¹t
         glBegin(GL_POLYGON);
         glVertex2i(x - blur, y - blur);
         glVertex2i(x + size + blur, y + blur);
@@ -60,154 +52,85 @@ void drawCarpet(int x, int y, int size, int depth, int blur_level) {
     glFlush();
 }
 
-/*************************************************************************************/
-// Funkcaja okreœlaj¹ca, co ma byæ rysowane
+// Funkcja okreœlaj¹ca, co ma byæ rysowane
 // (zawsze wywo³ywana, gdy trzeba przerysowaæ scenê)
+void RenderScene(void) {
+    if (!drawn) {
+        int size = powf(3, recursion);
 
-void RenderScene(void)
-{
+        glClear(GL_COLOR_BUFFER_BIT); // Wyczyœæ bufor tylko raz
 
-    int max_depth = 0;
-    int size = 0;
-    int blur_level = 0;
+        // Rozpocznij rysowanie dywanu od punktu (-100, -100)
+        drawCarpet(-100.0f, -100.0f, size, recursion, blur_level);
 
-    cout << "Podaj poziom rekursji: ";
-    cin >> max_depth;
-
-    size = powf(3, max_depth);
-
-    cout << "Podaj poziom rozmycia: ";
-    cin >> blur_level;
-
-    cout << endl;
-
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    // Rozpocznij rysowanie dywanu od punktu (-50, -50)
-    drawCarpet(-50.0f, -50.0f, size, max_depth, blur_level);
+        drawn = true; // Oznacz, ¿e dywan zosta³ ju¿ narysowany
+    }
 
     glFlush();
-
 }
-
-/*************************************************************************************/
 
 // Funkcja ustalaj¹ca stan renderowania
-
-
-
-void MyInit(void)
-
-{
-
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-    // Kolor okna wnêtrza okna - ustawiono na czarny
-
+void MyInit(void) {
+    glClearColor(0.5f, 0.5f, 0.5f, 0.5f);
+    // Kolor okna wnêtrza okna - ustawiono na szary
 }
-
-/*************************************************************************************/
 
 // Funkcja s³u¿¹ca do kontroli zachowania proporcji rysowanych obiektów
 // niezale¿nie od rozmiarów okna graficznego
-
-
-
-void ChangeSize(GLsizei horizontal, GLsizei vertical)
-
-// Parametry horizontal i vertical (szerokoœæ i wysokoœæ okna) s¹
-// przekazywane do funkcji za ka¿dym razem, gdy zmieni siê rozmiar okna
-
-{
-
+void ChangeSize(GLsizei horizontal, GLsizei vertical) {
     GLfloat AspectRatio;
 
-    // Deklaracja zmiennej AspectRatio okreœlaj¹cej proporcjê wymiarów okna
-
-
-
     if (vertical == 0)
-        // Zabezpieczenie pzred dzieleniem przez 0
-
         vertical = 1;
 
-
     glViewport(0, 0, horizontal, vertical);
-    // Ustawienie wielkoœciokna okna urz¹dzenia (Viewport)
-    // W tym przypadku od (0,0) do (horizontal, vertical)
-
-
     glMatrixMode(GL_PROJECTION);
-    // Okreœlenie uk³adu wspó³rzêdnych obserwatora
-
     glLoadIdentity();
-    // Okreœlenie przestrzeni ograniczaj¹cej
-
     AspectRatio = (GLfloat)horizontal / (GLfloat)vertical;
-    // Wyznaczenie wspó³czynnika proporcji okna
 
-    // Gdy okno na ekranie nie jest kwadratem wymagane jest
-    // okreœlenie okna obserwatora.
-    // Pozwala to zachowaæ w³aœciwe proporcje rysowanego obiektu
-    // Do okreœlenia okna obserwatora s³u¿y funkcja glOrtho(...)
+    cout << "Podaj poziom rekursji: ";
+    cin >> recursion;
 
+    cout << "\nPodaj poziom perturbacji: ";
+    cin >> blur_level;
 
+    // Oblicz now¹ wartoœæ `size` na podstawie wzoru size = powf(3, recursion) - 100.00
+    float size = powf(3, recursion) - 100.0;
 
     if (horizontal <= vertical)
-
-        glOrtho(-100.0, 100.0, -100.0 / AspectRatio, 100.0 / AspectRatio, 1.0, -1.0);
-
+        glOrtho(-100.0, size, -100.0 / AspectRatio, size / AspectRatio, 1.0, -1.0);
     else
-
-        glOrtho(-100.0 * AspectRatio, 100.0 * AspectRatio, -100.0, 100.0, 1.0, -1.0);
+        glOrtho(-100.0 * AspectRatio, size * AspectRatio, -100.0, size, 1.0, -1.0);
 
     glMatrixMode(GL_MODELVIEW);
-    // Okreœlenie uk³adu wspó³rzêdnych    
-
     glLoadIdentity();
-
 }
 
-/*************************************************************************************/
-
 // G³ówny punkt wejœcia programu. Program dzia³a w trybie konsoli
-
-
-
-void main(int argc, char** argv)
-
-{
-
+int main(int argc, char** argv) {
     glutInit(&argc, argv);
+    // Funkcja MyInit (zdefiniowana powy¿ej) wykonuje wszelkie 
+    // inicjalizacje konieczne przed przyst¹pieniem do renderowania
+
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGBA);
     // Ustawienie trybu wyœwietlania
     // GLUT_SINGLE - pojedynczy bufor wyœwietlania
     // GLUT_RGBA - model kolorów RGB
 
-
-
     glutCreateWindow("Dywan Sierpiñskiego z perturbacjami");
     // Utworzenie okna i okreœlenie treœci napisu w nag³ówku okna
-
 
     glutDisplayFunc(RenderScene);
     // Okreœlenie, ¿e funkcja RenderScene bêdzie funkcj¹ zwrotn¹ (callback)
     // Biblioteka GLUT bêdzie wywo³ywa³a t¹ funkcjê za ka¿dym razem, gdy
     // trzeba bêdzie przerysowaæ okno
 
-
     glutReshapeFunc(ChangeSize);
     // Dla aktualnego okna ustala funkcjê zwrotn¹ odpowiedzialn¹ za
     // zmiany rozmiaru okna
 
-    MyInit();
-    // Funkcja MyInit (zdefiniowana powy¿ej) wykonuje wszelkie 
-    // inicjalizacje konieczneprzed przyst¹pieniem do renderowania
-
-
     glutMainLoop();
     // Funkcja uruchamia szkielet biblioteki GLUT
 
+    return 0;
 }
-
-/*************************************************************************************/
-
